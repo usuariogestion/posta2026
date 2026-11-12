@@ -20,7 +20,7 @@ h1{font-size:clamp(1rem,2.6vw,1.3rem);font-weight:500;color:var(--cream);text-al
 .track{stroke:rgba(255,255,255,.14)}
 .bar{stroke:url(#g);stroke-linecap:round;transition:stroke-dashoffset 1.6s cubic-bezier(.2,.8,.2,1);filter:drop-shadow(0 0 8px rgba(255,10,92,.7))}
 .center{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center}
-.pct{font-size:clamp(3rem,12vw,4.4rem);font-weight:800;line-height:1;color:var(--yel)}
+.pct{font-size:clamp(3.6rem,15vw,5.6rem);font-weight:800;line-height:1;color:var(--yel);animation:beat 1.6s ease-in-out infinite,hue 9s ease-in-out infinite;text-shadow:0 0 22px currentColor}
 .pct small{font-size:.45em;color:var(--cream)}
 .lbl{font-size:.85rem;color:var(--cream);margin-top:4px}
 .money{margin-top:16px;font-size:clamp(1.5rem,5vw,2rem);font-weight:800}
@@ -35,12 +35,17 @@ h1{font-size:clamp(1rem,2.6vw,1.3rem);font-weight:500;color:var(--cream);text-al
 .dl{margin-top:14px;font-size:.85rem;color:var(--cream)}
 .people{margin-top:14px;font-size:.95rem;color:var(--cream)}
 .people b{color:var(--yel);font-size:1.15rem}
+@keyframes beat{0%,100%{transform:scale(1)}50%{transform:scale(1.09)}}
+@keyframes hue{0%,100%{color:#ffc000}25%{color:#ff3d7f}50%{color:#2de0cf}75%{color:#c98bf0}}
+.btn{margin-top:18px;background:linear-gradient(135deg,var(--pink),#ff5c8a);color:#fff;border:0;border-radius:999px;padding:12px 26px;font:700 .95rem Poppins,system-ui,sans-serif;cursor:pointer;box-shadow:0 6px 18px rgba(255,10,92,.4);transition:transform .2s,box-shadow .2s}
+.btn:hover{transform:translateY(-2px) scale(1.04);box-shadow:0 10px 24px rgba(255,10,92,.55)}
+.btn:active{transform:scale(.97)}.btn.go span{display:inline-block;animation:sp .7s linear infinite}
 @keyframes sp{to{transform:rotate(360deg)}}.spin{display:none;transform-box:fill-box;transform-origin:center;animation:sp 1.1s linear infinite}.loading .spin{display:block}.loading .bar{opacity:0}
 #toast{position:fixed;left:50%;bottom:22px;transform:translate(-50%,20px);opacity:0;background:#fff;color:var(--bg);font-weight:700;padding:10px 20px;border-radius:999px;box-shadow:0 8px 24px rgba(0,0,0,.4);transition:opacity .6s,transform .6s;pointer-events:none;white-space:nowrap;font-size:.95rem}
 #toast.on{opacity:1;transform:translate(-50%,0)}
 #toast em{font-style:normal;color:var(--pink)}
 #cv{position:fixed;inset:0;pointer-events:none}
-@media(prefers-reduced-motion:reduce){.bar,#toast{transition:none}}
+@media(prefers-reduced-motion:reduce){.bar,#toast{transition:none}.pct{animation:none}.btn.go span{animation:none}}
 </style>
 </head>
 <body>
@@ -58,6 +63,7 @@ h1{font-size:clamp(1rem,2.6vw,1.3rem);font-weight:500;color:var(--cream);text-al
       <div class="center"><div class="pct"><span id="pct">0</span><small>%</small></div><div class="lbl" id="lbl">Cargando…</div></div>
     </div>
     <div class="money"><span id="raised">$0</span> de <span id="goal"></span></div>
+    <button class="btn" id="refresh" type="button"><span>↻</span> Actualizar meta</button>
     <div id="err" style="font-size:.7rem;opacity:.75;margin-top:8px;word-break:break-word"></div>
     <div class="people"><b id="ppl">0</b> de <span id="pgoal"></span> personas han aportado</div>
   </div>
@@ -144,8 +150,11 @@ async function load(){
   $("err").textContent=""; names=list; render(CONFIG.modo==="valores"?val:cnt*CONFIG.cuota, cnt);
 }
 function animateNum(el,to,dur,pre=""){
-  const from=parseFloat(el.dataset.v||0);el.dataset.v=to;const t0=performance.now();
-  (function f(t){const k=Math.min(1,(t-t0)/dur),e=1-Math.pow(1-k,3);const v=from+(to-from)*e;el.textContent=pre+(Number.isInteger(to)?Math.round(v):v.toFixed(2));if(k<1)requestAnimationFrame(f)})(t0);
+  const from=parseFloat(el.dataset.v||0); if(from===to) return;
+  el.dataset.v=to; const tok=el._tok=(el._tok||0)+1, t0=performance.now();
+  (function f(t){ if(el._tok!==tok) return;
+    const k=Math.min(1,(t-t0)/dur),e=1-Math.pow(1-k,3),v=from+(to-from)*e;
+    el.textContent=pre+(Number.isInteger(to)?Math.round(v):v.toFixed(2)); if(k<1)requestAnimationFrame(f) })(t0);
 }
 function render(total,count){
   const frac=Math.min(1,total/META), go=()=>{
@@ -165,9 +174,10 @@ function tick(){
   $("m").textContent=String(Math.floor(s%3600/60)).padStart(2,"0"); $("s").textContent=String(s%60).padStart(2,"0");
   $("msg").textContent = d>1 ? `Faltan ${d} días para llegar a la meta` : d===1 ? "Falta 1 día para llegar a la meta" : "¡Hoy es el último día!";
 }
+let lastN="";
 function toast(){
   if(!names.length) return;
-  const n = names[Math.floor(Math.random()*names.length)], t=$("toast");
+  const pool=names.length>1?names.filter(x=>x!==lastN):names, n=pool[Math.floor(Math.random()*pool.length)], t=$("toast"); lastN=n;
   t.innerHTML = `💖 <em>${n.replace(/[<>&]/g,"")}</em> ya aportó`;
   t.classList.add("on"); setTimeout(()=>t.classList.remove("on"),3200);
 }
@@ -177,6 +187,13 @@ function confetti(){
   const ps=Array.from({length:160},()=>({x:Math.random()*cv.width,y:-20-Math.random()*cv.height,v:2+Math.random()*4,s:5+Math.random()*7,c:cols[Math.floor(Math.random()*5)]}));
   let f=0;(function a(){x.clearRect(0,0,cv.width,cv.height);ps.forEach(p=>{p.y+=p.v;x.fillStyle=p.c;x.fillRect(p.x,p.y,p.s,p.s*.6)});if(++f<400)requestAnimationFrame(a);else x.clearRect(0,0,cv.width,cv.height)})();
 }
+function replayMoney(){
+  const el=$("raised"), to=parseFloat(el.dataset.v||0);
+  if(!first && to>0){ el.dataset.v=0; animateNum(el,to,2400,"$"); }
+  setTimeout(replayMoney,18000+Math.random()*35000);
+}
+setTimeout(replayMoney,14000+Math.random()*12000);
+$("refresh").onclick=function(){this.classList.add("go");setTimeout(()=>location.reload(),350)};
 tick(); setInterval(tick,1000);
 load().catch(e=>{console.error(e);$("lbl").textContent="Reintentando…";$("err").textContent="No se pudo leer la hoja ("+e.message+")"}); setInterval(()=>load().catch(e=>{$("err").textContent="No se pudo actualizar ("+e.message+")"}),CONFIG.refrescarSeg*1000);
 setTimeout(()=>{toast();setInterval(toast,6000)},2500);
